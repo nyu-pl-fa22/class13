@@ -1,0 +1,12 @@
+a.out
+/target
+**/*.rs.bk
+*~
+ptr_test
+cmake_install.cmake
+CMakeFiles/
+CMakeCache.txt
+.idea/
+*.iml
+Makefile
+go.sum
