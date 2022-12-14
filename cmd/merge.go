@@ -4,69 +4,70 @@ import (
 	"fmt"
 )
 
-func split(pin, pout *chan int) {
-	vall := <-*pin
-	valr, more := <-*pin
+func split(pin, pout chan int) {
+	vall := <-pin
+	valr, more := <-pin
 	if more {
 		// Spawn off recursive sorters
 		lin := make(chan int)
 		lout := make(chan int)
-		go split(&lout, &lin)
+		go split(lout, lin)
 		rin := make(chan int)
 		rout := make(chan int)
-		go split(&rout, &rin)
+		go split(rout, rin)
 
 		// Send data from parent to recursive sorters
 		lout <- vall
 		rout <- valr
-		for val := range *pin {
+		for val := range pin {
 			lout <- val
 			lout, rout = rout, lout
 		}
 		close(lout)
 		close(rout)
 
-		merge(pout, &lin, &rin)
+		// Merge sorted data received from children and send to parent
+		merge(pout, lin, rin)
 
 	} else {
 		// Only one element to sort - just return it to parent
-		*pout <- vall
-		close(*pout)
+		pout <- vall
+		close(pout)
 	}
 }
 
-func merge(pout, lin, rin *chan int) {
+func merge(pout, lin, rin chan int) {
 	// Receive and merge values from recursive sorters
-	lval, lmore := <-*lin
-	rval, rmore := <-*rin
+	lval, lmore := <-lin
+	rval, rmore := <-rin
 	for rmore {
 		if rval <= lval {
-			*pout <- rval
+			pout <- rval
 		} else {
-			*pout <- lval
+			pout <- lval
 			lval = rval
 			lmore, rmore = rmore, lmore
 			lin, rin = rin, lin
 		}
-		rval, rmore = <-*rin
+		rval, rmore = <-rin
 	}
 	// Done with rin
 
 	// Copy remaining values from lin to pout
 	for lmore {
-		*pout <- lval
-		lval, lmore = <-*lin
+		pout <- lval
+		lval, lmore = <-lin
 	}
-	close(*pout)
+	close(pout)
 }
 
 func main() {
-	input := [6]int{1, 4, 4, 2, 7, 3}
+	input := [10]int{1, 4, 4, 2, 7, 3, 5, 8, 42, 0}
 
 	in := make(chan int)
 	out := make(chan int)
 
-	go split(&out, &in)
+	go split(out, in)
 
 	for _, val := range input {
 		out <- val
